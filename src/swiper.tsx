@@ -1,9 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import names from './namelist';
 import Hammer from 'hammerjs';
 
-class Swiper extends React.Component {
-  renderNameRow(name: string, index: number) {
+
+interface NameResult {
+    [name: string]: string; // result can be "good"/"bad"
+}
+
+function Swiper() {
+  const [undecided, setUndecided] = useState(names);
+  const [decided, setDecided] = useState<NameResult[]>([]); //{"nameA": "good", "nameB": "bad"}
+  const renderNameRow = (name: string, index: number) => {
     return (
       <tr key={name}>
         <th>{index+1}</th>
@@ -12,60 +19,58 @@ class Swiper extends React.Component {
     );
   };
 
-  swipeLeft() {
+
+  const decision = (choice: string) => {
+    console.log(decided);
+    console.log(undecided);
+    const curName = undecided[0];
+    if (curName) {
+      setDecided([...decided, {[curName]: choice}]);
+      setUndecided(undecided.slice(1));
+    } else {
+      console.log("no names left?");
+      alert("Prize time!");
+    }
+  }
+
+  const swipeLeft = () => {
     console.log("to the left!");
+    decision("good");
   }
 
-  swipeRight() {
+  const swipeRight = () => {
     console.log("to the right!");
+    decision("bad");
   }
 
-  alerty() {
-    alert("hello world");
-  };
+  const divRef = React.createRef<HTMLDivElement>();
 
-
-  divRef = React.createRef<HTMLDivElement>();
-  render() {
-    return (
-    <div className="square" ref={this.divRef}>
-      <table>
-        <caption>Names</caption>
-        <tbody>
-        {names.map(this.renderNameRow)}
-        </tbody>
-      </table>
-      <button onClick={this.alerty}>BUtton here?</button>
-    </div>
-  );
-  }
-
-  componentDidMount() {
-    var square = this.divRef.current;
+  useEffect(() => {
+    var square = divRef.current;
     
     if (!square) {
       console.log("Unable to load reference to swipable area.");
-      return false; // something failed...
+      return; // something failed...
     }
-
-    console.log("square");
-    console.log(square);
-    
     // Create an instance of Hammer with the reference.
     var hammer = new Hammer(square);
-    
-    // Subscribe to a quick start event: press, tap, or doubletap.
-    // For a full list of quick start events, read the documentation.
-    hammer.on('tap', function(e) {
-      e.target.classList.toggle('expand');
-      console.log("You're pressing me!");
-      alert("You're pressing me!");
-      console.log(e);
-    });
+    hammer.on('swipeleft', swipeLeft);
+    hammer.on('swiperight', swipeRight);
+    return;
+  });
+  
 
-    hammer.on('swipeleft', this.swipeLeft);
-    hammer.on('swiperight', this.swipeRight);
-  }
+  console.log('App render');
+  return (
+    <div className="square" ref={divRef}>
+      <table>
+        <caption>Names</caption>
+        <tbody>
+        {undecided.map(renderNameRow)}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 export default Swiper;
