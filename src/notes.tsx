@@ -11,7 +11,7 @@ function Notes() {
     const name = item[0]
     const data = item[1]
     return (
-      <tr>
+      <tr key={index}>
         <th>{index+1}</th>
         <td>{name}</td>
         <td>{(data.checked && "☑") || "☐"}</td>
@@ -22,7 +22,9 @@ function Notes() {
   return (
     <table>
       <caption>TODO items</caption>
+        <tbody>
       {Object.entries(todos).map(renderTodoRow)}
+        </tbody>
     </table>
   );
 }

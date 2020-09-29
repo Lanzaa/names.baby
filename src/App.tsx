@@ -1,5 +1,5 @@
 import React from 'react';
-import logo from './logo.svg';
+//import logo from './logo.svg';
 import './App.css';
 import Notes from './notes';
 import Swiper from './swiper';
@@ -16,11 +16,11 @@ function App() {
         <br />
         </p>
         <Notes />
-        <img src={logo} className="App-logo" alt="logo" />
         <Swiper />
       </header>
     </div>
   );
 }
+        //<img src={logo} className="App-logo" alt="logo" />
 
 export default App;
