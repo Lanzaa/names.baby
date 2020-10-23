@@ -2,6 +2,11 @@ import React, { useEffect, useReducer } from 'react';
 import names from './namelist';
 import Hammer from 'hammerjs';
 
+//import * as PouchDB from 'pouchdb';
+import PouchDB from 'pouchdb';
+
+const db = new PouchDB('name-decisions-03');
+
 
 type dec =
   | "good"
@@ -36,22 +41,49 @@ function decisionReducer(state: Data, action: Action): Data {
   const curName: string = undecided[0];
   const decided: NameDecision[] = state.decided;
   const decision: dec = action.type;
+  saveDecisionToStorage({name: curName, decision: decision});
   return {
     decided: [...decided, {name: curName, decision: decision}],
     undecided: undecided.slice(1),
     version: state.version + 1,
   }
 }
+
+
+function loadDB() {
+  return db;
+}
 function loadFromStorage(): Data {
   console.log("Need to load from local storage.");
+  //const db = new PouchDB.plugin('name-decisions-01');
+  const db = loadDB();
+  const doc = db.allDocs({include_docs: true}).then((doc) => {
+    console.log("doc");
+    console.log(doc);
+    const rows = doc.rows;
+    const name_dec = rows.map(({doc: {name, decision}}) => {
+      return {[name]: decision};
+    });
+    console.log(name_dec);
+  });
   return {
     undecided: names,
     decided: [],
     version: 1,
   };
 }
+function saveDecisionToStorage(
+  {name, decision}: NameDecision
+) {
+  const db = loadDB();
+  db.put({name, decision, "_id": name}).then((uh) => {
+    console.log("Saved something...");
+    console.log(uh);
+  });
+};
 function saveToStorage(state: Data) {
   console.log("Need to save to local storage.");
+  const db = loadDB();
   return false;
 }
 
