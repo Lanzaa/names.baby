@@ -90,16 +90,25 @@ function Swiper(props: any) {
     saveToStorage(state);
     return;
   }, [state]);
+
+  const prev_count: number = 5;
+  const upcoming_count: number = 5;
+
+  const recent_decisions = state.decided.slice(-1*prev_count);
+  const upcoming = state.undecided.slice(0, upcoming_count);
   
   return (
     <div className="square" ref={divRef}>
-      <ShowDecisions decided={state.decided} />
-      <ShowUpcoming undecided={state.undecided} />
+      <ShowDecisions decided={recent_decisions} />
+      <ShowUpcoming undecided={upcoming} />
+      <p>Remaining: {state.undecided.length}</p>
     </div>
   );
 }
 
-function ShowUpcoming(props: any) {
+function ShowUpcoming(
+  {undecided}: {undecided: string[]}
+) {
   const renderNameRow = (name: string, index: number) => {
     return (
       <tr key={name}>
@@ -108,11 +117,7 @@ function ShowUpcoming(props: any) {
       </tr>
     );
   };
-  const undecided: string[] = props.undecided;
-  //useEffect(() => {
-  //  console.log("Upcoming render");
-  //  console.log(undecided);
-  //});
+  //const undecided: string[] = props.undecided;
   return (
     <table>
       <caption>Names</caption>
@@ -151,12 +156,9 @@ function renderNameDecision(nr: NameDecision) {
   );
 }
 
-function ShowDecisions(props: any) {
-  const decided: NameDecision[] = props.decided;
-  //useEffect(() => {
-  //  console.log("Decided render");
-  //  console.log(decided);
-  //});
+function ShowDecisions(
+  {decided}: {decided: NameDecision[]}
+) {
   return (
     <table>
       <caption>Names decided</caption>
@@ -166,6 +168,5 @@ function ShowDecisions(props: any) {
     </table>
   );
 }
-
 
 export default Swiper;
