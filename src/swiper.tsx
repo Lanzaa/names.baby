@@ -2,7 +2,6 @@ import React, { useEffect, useReducer } from 'react';
 import names from './namelist';
 import Hammer from 'hammerjs';
 
-//import * as PouchDB from 'pouchdb';
 import PouchDB from 'pouchdb';
 
 const db = new PouchDB('name-decisions-03');
@@ -55,16 +54,27 @@ function loadDB() {
 }
 function loadFromStorage(): Data {
   console.log("Need to load from local storage.");
-  //const db = new PouchDB.plugin('name-decisions-01');
   const db = loadDB();
-  const doc = db.allDocs({include_docs: true}).then((doc) => {
-    console.log("doc");
-    console.log(doc);
-    const rows = doc.rows;
-    const name_dec = rows.map(({doc: {name, decision}}) => {
+  const xx = db.allDocs({include_docs: true}).then((docs) => {
+    console.log("docs");
+    console.log(docs);
+    const rows = docs.rows;
+    console.log("rows");
+    console.log(rows);
+    //const isDoc = (row: T | undefined)<T>: row is T => row !== undefined;
+    const good_rows = rows.flatMap(({doc}) => doc ?? []);
+    console.log("good rows");
+    console.log(good_rows);
+    console.log("Row data");
+    const decs: NameDecision[] = good_rows.map(({name, decision}: any): NameDecision => {
+      return {name, decision};
+    });
+    console.log(decs);
+
+    const y = docs.rows.map(({doc: {name, decision}}: any) => {
       return {[name]: decision};
     });
-    console.log(name_dec);
+    console.log(y);
   });
   return {
     undecided: names,
