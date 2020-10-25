@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 import names from './namelist';
 import Hammer from 'hammerjs';
 
@@ -6,6 +6,7 @@ import PouchDB from 'pouchdb';
 
 const db = new PouchDB('name-decisions-03');
 
+const NAME_KEY = "name-decision-state";
 
 type dec =
   | "good"
@@ -14,13 +15,12 @@ type dec =
 interface NameDecision {
   name: string,
   decision: dec
-  timestamp?: string;
+  timestamp: number;
 }
 
-interface NameDecisionsObj {
-  [name: string]: dec;
+interface DBData {
+  decided?: NameDecision[],
 }
-
 
 interface Data {
   decided: NameDecision[],
@@ -29,10 +29,18 @@ interface Data {
 }
 
 interface Action {
-  type: dec
+  type: dec | "reset",
+  payload?: Data
 }
 
 function decisionReducer(state: Data, action: Action): Data {
+  if (action.type === "reset") {
+    if (action.payload) {
+      return action.payload;
+    } else {
+      return INITIAL;
+    }
+  }
   const undecided: string[] = state.undecided;
   if (undecided.length === 0) {
     return state;
@@ -40,67 +48,61 @@ function decisionReducer(state: Data, action: Action): Data {
   const curName: string = undecided[0];
   const decided: NameDecision[] = state.decided;
   const decision: dec = action.type;
-  saveDecisionToStorage({name: curName, decision: decision});
+  const full_decision: NameDecision = {
+    name: curName,
+    decision,
+    timestamp: Date.now(),
+  };
   return {
-    decided: [...decided, {name: curName, decision: decision}],
+    decided: [...decided, full_decision],
     undecided: undecided.slice(1),
     version: state.version + 1,
   }
 }
 
-
 function loadDB() {
   return db;
 }
-function loadFromStorage(): Data {
-  console.log("Need to load from local storage.");
-  const db = loadDB();
-  const xx = db.allDocs({include_docs: true}).then((docs) => {
-    console.log("docs");
-    console.log(docs);
-    const rows = docs.rows;
-    console.log("rows");
-    console.log(rows);
-    //const isDoc = (row: T | undefined)<T>: row is T => row !== undefined;
-    const good_rows = rows.flatMap(({doc}) => doc ?? []);
-    console.log("good rows");
-    console.log(good_rows);
-    console.log("Row data");
-    const decs: NameDecision[] = good_rows.map(({name, decision}: any): NameDecision => {
-      return {name, decision};
-    });
-    console.log(decs);
 
-    const y = docs.rows.map(({doc: {name, decision}}: any) => {
-      return {[name]: decision};
-    });
-    console.log(y);
+function loadStateFromStorage(): Promise<Data> {
+  console.log("Need to load state from local storage.");
+  const db = loadDB();
+  const load_promise = db.get<DBData>(NAME_KEY).then((doc) => {
+    const decided: NameDecision[] = doc.decided || [];
+    const decided_names: {name: dec} = Object.assign({}, 
+      ...decided.map(({name, decision}) => ({[name]: decision })));
+    const undecided = names.filter((n) => !(n in decided_names));
+    return { decided, undecided, version: 1};
+  }).catch((err) => {
+    console.log("Error loading from storage", err);
+    if (err.status === 404) {
+      db.put({_id: NAME_KEY}); // Put first version in
+    }
+    return {...INITIAL, undecided: names};
   });
-  return {
-    undecided: names,
-    decided: [],
-    version: 1,
-  };
+  return load_promise;
 }
-function saveDecisionToStorage(
-  {name, decision}: NameDecision
-) {
-  const db = loadDB();
-  db.put({name, decision, "_id": name}).then((uh) => {
-    console.log("Saved something...");
-    console.log(uh);
-  });
-};
 function saveToStorage(state: Data) {
-  console.log("Need to save to local storage.");
   const db = loadDB();
-  return false;
+  const prom = db.get<DBData>(NAME_KEY).then(function(doc) {
+    return db.put({
+      decided: state.decided,
+      _id: NAME_KEY,
+      _rev: doc._rev,
+    });
+  }).then(function(response) {
+    console.log("Updated data", response);
+  }).catch(function (err) {
+    console.log("We f-ed...", err);
+  });
+  return prom;
 }
 
 const divRef = React.createRef<HTMLDivElement>();
-const initial: Data = loadFromStorage();
+const INITIAL: Data = {decided: [], undecided: [], version: 0};
 function Swiper(props: any) {
-  const [state, dispatch] = useReducer(decisionReducer, initial);
+  const [state, dispatch] = useReducer(decisionReducer, INITIAL);
+  const [isLoading, setLoading] = useState(true);
 
   useEffect(() => {
     const swipeLeft = () => {
@@ -127,24 +129,47 @@ function Swiper(props: any) {
   }, [dispatch, props.source]);
 
   useEffect(() => {
-    console.log("state needs to be saved");
-    console.log(state);
+    if (isLoading) {
+      loadStateFromStorage().then((payload: Data) => {
+        dispatch({type:"reset", payload: payload});
+        setLoading(false);
+      });
+    }
+  }, [dispatch, isLoading]);
+    
+
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
     saveToStorage(state);
     return;
-  }, [state]);
+  }, [isLoading, state]);
 
   const prev_count: number = 5;
   const upcoming_count: number = 5;
 
   const recent_decisions = state.decided.slice(-1*prev_count);
-  const upcoming = state.undecided.slice(0, upcoming_count);
+  const next_name = state.undecided[0];
+  const upcoming = state.undecided.slice(1, upcoming_count+1);
   
   return (
     <div className="square" ref={divRef}>
-      <ShowDecisions decided={recent_decisions} />
-      <ShowUpcoming undecided={upcoming} />
-      <p>Remaining: {state.undecided.length}</p>
+      {!isLoading && (
+      <>
+        <ShowDecisions decided={recent_decisions} />
+        <ShowNext next_name={next_name} />
+        <ShowUpcoming undecided={upcoming} />
+        <p>Remaining: {state.undecided.length}</p>
+      </>
+      )}
     </div>
+  );
+}
+
+function ShowNext({next_name}: {next_name: string}) {
+  return (
+    <h2>{next_name}</h2>
   );
 }
 
