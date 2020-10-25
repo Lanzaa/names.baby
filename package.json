@@ -1,6 +1,7 @@
 {
   "name": "names.baby",
-  "version": "0.1.0",
+  "version": "0.9.0",
+  "homepage": "/names.baby/",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^4.2.4",
