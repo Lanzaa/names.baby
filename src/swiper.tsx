@@ -46,6 +46,9 @@ function decisionReducer(
   }
   const {undecided, decided, version} = state;
   if (action.type === "back") {
+    if (decided.length === 0) {
+      return state;
+    }
     const lastDecision: NameDecision = decided.slice(-1)[0];
     
     return {
@@ -128,11 +131,6 @@ function Swiper(props: any) {
       dispatch({type:"good"});
     }
 
-    const swipeDown = () => {
-      console.log("OOOO go back!");
-      dispatch({type:"back"});
-    }
-
     console.log('App render');
     var square = divRef.current;
     if (!square) {
@@ -143,7 +141,6 @@ function Swiper(props: any) {
     var hammer = new Hammer(square);
     hammer.on('swipeleft', swipeLeft);
     hammer.on('swiperight', swipeRight);
-    hammer.on('swipedown', swipeDown);
     return;
   }, [dispatch, props.source]);
 
@@ -176,13 +173,16 @@ function Swiper(props: any) {
   const recent_decisions = state.decided.slice(-1*prev_count);
   const next_name = state.undecided[0];
   const upcoming = state.undecided.slice(1, upcoming_count+1);
+
+
   
   return (
-    <div className="square" ref={divRef}>
+  <>
+    <DownloadLink state={state} />
+    <div className="Square" ref={divRef}>
       {!isLoading && (
       <>
         <button onClick={goBack}>Undo</button>
-        <p>Remaining: {state.undecided.length}</p>
         <div style={{textAlign: "center"}}>
           <ShowDecisions decided={recent_decisions} />
           <ShowNext next_name={next_name} />
@@ -190,6 +190,17 @@ function Swiper(props: any) {
         </div>
       </>
       )}
+    </div>
+  </>
+  );
+}
+
+function DownloadLink({state: {decided}}: {state: Data}) {
+  const json = JSON.stringify({decided});
+  const data_uri = 'data:text/plain;charset=utf-8,'+encodeURIComponent(json);
+  return (
+    <div>
+      <a href={data_uri} download="decided_names.json">Download</a>
     </div>
   );
 }
@@ -229,24 +240,12 @@ function ShowUpcoming(
   );
 }
 
-function thumby(d: dec): string {
-  switch(d) {
-    case "good":
-      return '+1';
-    case "bad":
-      return '-1';
-  }
-  ((x: never): never => {throw new Error()}
-  )(d)
-}
-
 const THUMB_DOWN = '👎';
 const THUMB_UP = '👍';
 
 function renderNameDecision(nr: NameDecision) {
   const name: string = nr.name;
   const decision: dec = nr.decision;
-  const result: string = thumby(nr.decision);
 
   const good: boolean = decision === "good";
   const l_r: "left"|"right" = good ? "right" : "left";
