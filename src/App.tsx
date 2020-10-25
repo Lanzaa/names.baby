@@ -8,8 +8,6 @@ function App() {
       <div className="Content">
         <Swiper />
       </div>
-      <header className="App-header">
-      </header>
     </div>
   );
 }
