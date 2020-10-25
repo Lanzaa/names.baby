@@ -29,11 +29,14 @@ interface Data {
 }
 
 interface Action {
-  type: dec | "reset",
+  type: dec | "reset" | "back";
   payload?: Data
 }
 
-function decisionReducer(state: Data, action: Action): Data {
+function decisionReducer(
+  state: Data,
+  action: Action
+): Data {
   if (action.type === "reset") {
     if (action.payload) {
       return action.payload;
@@ -41,12 +44,22 @@ function decisionReducer(state: Data, action: Action): Data {
       return INITIAL;
     }
   }
-  const undecided: string[] = state.undecided;
+  const {undecided, decided, version} = state;
+  if (action.type === "back") {
+    const lastDecision: NameDecision = decided.slice(-1)[0];
+    
+    return {
+      decided: decided.slice(0,-1),
+      undecided: [lastDecision.name, ...undecided],
+      version: version - 1,
+    }
+  }
+  //const undecided: string[] = state.undecided;
   if (undecided.length === 0) {
     return state;
   }
   const curName: string = undecided[0];
-  const decided: NameDecision[] = state.decided;
+  //const decided: NameDecision[] = state.decided;
   const decision: dec = action.type;
   const full_decision: NameDecision = {
     name: curName,
@@ -56,7 +69,7 @@ function decisionReducer(state: Data, action: Action): Data {
   return {
     decided: [...decided, full_decision],
     undecided: undecided.slice(1),
-    version: state.version + 1,
+    version: version + 1,
   }
 }
 
@@ -115,6 +128,11 @@ function Swiper(props: any) {
       dispatch({type:"good"});
     }
 
+    const swipeDown = () => {
+      console.log("OOOO go back!");
+      dispatch({type:"back"});
+    }
+
     console.log('App render');
     var square = divRef.current;
     if (!square) {
@@ -125,6 +143,7 @@ function Swiper(props: any) {
     var hammer = new Hammer(square);
     hammer.on('swipeleft', swipeLeft);
     hammer.on('swiperight', swipeRight);
+    hammer.on('swipedown', swipeDown);
     return;
   }, [dispatch, props.source]);
 
@@ -146,6 +165,11 @@ function Swiper(props: any) {
     return;
   }, [isLoading, state]);
 
+  const goBack = () => {
+    dispatch({type: "back"});
+    return false;
+  };
+
   const prev_count: number = 5;
   const upcoming_count: number = 5;
 
@@ -157,10 +181,13 @@ function Swiper(props: any) {
     <div className="square" ref={divRef}>
       {!isLoading && (
       <>
-        <ShowDecisions decided={recent_decisions} />
-        <ShowNext next_name={next_name} />
-        <ShowUpcoming undecided={upcoming} />
+        <button onClick={goBack}>Undo</button>
         <p>Remaining: {state.undecided.length}</p>
+        <div style={{textAlign: "center"}}>
+          <ShowDecisions decided={recent_decisions} />
+          <ShowNext next_name={next_name} />
+          <ShowUpcoming undecided={upcoming} />
+        </div>
       </>
       )}
     </div>
@@ -169,7 +196,17 @@ function Swiper(props: any) {
 
 function ShowNext({next_name}: {next_name: string}) {
   return (
-    <h2>{next_name}</h2>
+    <>
+    <table>
+      <tbody>
+        <tr>
+          <td>{THUMB_DOWN}</td>
+          <th style={{minWidth: '6em'}}><h2>{next_name}</h2></th>
+          <td>{THUMB_UP}</td>
+        </tr>
+      </tbody>
+    </table>
+    </>
   );
 }
 
@@ -179,15 +216,12 @@ function ShowUpcoming(
   const renderNameRow = (name: string, index: number) => {
     return (
       <tr key={name}>
-        <th>{index+1}</th>
         <td>{name}</td>
       </tr>
     );
   };
-  //const undecided: string[] = props.undecided;
   return (
     <table>
-      <caption>Names</caption>
       <tbody>
       {undecided.map(renderNameRow)}
       </tbody>
@@ -200,25 +234,32 @@ function thumby(d: dec): string {
     case "good":
       return '+1';
     case "bad":
-      return '-';
+      return '-1';
   }
   ((x: never): never => {throw new Error()}
   )(d)
 }
 
-function Thumb(d: dec) {
-  const t: string = thumby(d);
-  return (<>{t}</>);
-}
+const THUMB_DOWN = '👎';
+const THUMB_UP = '👍';
 
 function renderNameDecision(nr: NameDecision) {
   const name: string = nr.name;
+  const decision: dec = nr.decision;
   const result: string = thumby(nr.decision);
+
+  const good: boolean = decision === "good";
+  const l_r: "left"|"right" = good ? "right" : "left";
+  const stylin = {
+    textAlign: l_r,
+    minWidth: '5em',
+  };
+
   return (
     <tr key={"d"+name}>
-      <td>{name}</td>
-      <td>{result}</td>
-      <td>{Thumb(nr.decision)}</td>
+      <td>{good || THUMB_DOWN}</td>
+      <td style={stylin}>{name}</td>
+      <td>{good && THUMB_UP}</td>
     </tr>
   );
 }
@@ -228,7 +269,6 @@ function ShowDecisions(
 ) {
   return (
     <table>
-      <caption>Names decided</caption>
       <tbody>
         {decided.map(renderNameDecision)}
       </tbody>
